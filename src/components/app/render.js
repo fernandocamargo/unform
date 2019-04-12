@@ -1,60 +1,13 @@
-import React, { lazy, Suspense, createElement } from "react";
-import { arrayOf, shape, string, oneOf, func } from "prop-types";
+import React from "react";
 
-export const Core = props => (
-  <form>
-    <fieldset>
-      <legend>this is a form</legend>
-      <pre>{JSON.stringify(props, null, 2)}</pre>
-    </fieldset>
-  </form>
-);
-
-export const delay = event => ({
-  for: duration =>
-    new Promise(resolve => window.setTimeout(() => resolve(event), duration))
-});
-
-export const wrap = settings => {
-  const { asEnum, asPropType, asPromise } = Object.entries(settings).reduce(
-    ({ asEnum, asPropType, asPromise }, [type, promise]) => ({
-      asEnum: Object.assign(asEnum, { [type]: type }),
-      asPropType: asPropType.concat(type),
-      asPromise: asPromise.concat(promise)
-    }),
-    { asEnum: {}, asPropType: [], asPromise: [] }
-  );
-  const propTypes = {
-    fields: arrayOf(
-      shape({
-        name: string.isRequired,
-        type: oneOf(asPropType).isRequired
-      })
-    ).isRequired,
-    onChange: func,
-    onSubmit: func
-  };
-  const ExtendedCore = props =>
-    createElement(Object.assign(Core, { propTypes }), props);
-  const Chain = lazy(() =>
-    Promise.all(asPromise).then(() => ({ default: ExtendedCore }))
-  );
-
-  return {
-    Form: props => (
-      <Suspense fallback={<p>Loading...</p>}>
-        <Chain {...props} />
-      </Suspense>
-    ),
-    TYPES: asEnum
-  };
-};
+import { wrap } from "components/core";
 
 export const { Form, TYPES } = wrap({
-  TEXT: import("components/fields/text"),
-  SELECT: import("components/fields/select"),
-  ERROR: import("components/fields/error"),
-  DRAFT: import("components/fields/draft")
+  fields: {
+    TEXT: import("components/fields/text"),
+    SELECT: import("components/fields/select"),
+    ERROR: import("components/fields/error")
+  }
 });
 
 export default () => (
@@ -65,19 +18,50 @@ export default () => (
       fields={[
         {
           name: "forename",
-          type: TYPES.TEXT
+          type: TYPES.TEXT,
+          value: "Fernando",
+          settings: {
+            placeholder: "Your forename"
+          }
         },
         {
           name: "surname",
-          type: TYPES.TEXT
+          type: TYPES.TEXT,
+          settings: {
+            placeholder: "Your surname"
+          }
         },
         {
-          name: "bio",
-          type: TYPES.DRAFT
+          name: "email",
+          type: TYPES.TEXT,
+          settings: {
+            type: "email"
+          }
+        },
+        {
+          name: "password",
+          type: TYPES.TEXT,
+          settings: {
+            type: "password"
+          },
+          validation: value => {
+            const trimmed = String(value).trim();
+
+            return {
+              length: {
+                min: trimmed >= 8,
+                max: trimmed <= 20
+              },
+              rules: {
+                uppercase: /[A-Z\u00C0-\u017F\s]/.test(trimmed),
+                lowecase: /[A-Z\u00C0-\u017F\s]/.test(trimmed),
+                number: /[0-9\s]/.test(trimmed),
+                special: /^.*?\W/.test(trimmed)
+              }
+            };
+          }
         }
       ]}
-      onChange={form => console.log("onChange();", form)}
-      onSubmit={form => console.log("onSubmit();", form)}
     />
   </div>
 );
